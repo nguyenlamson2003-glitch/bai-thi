@@ -1,52 +1,61 @@
 document.addEventListener("DOMContentLoaded", () => {
-    fetchNews();
+    fetchNews();
 });
 
-// Hàm tạo delay ảo giúp loading nhấp nháy vài giây xem cho nghệ thuật
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function fetchNews() {
-    const loadingIndicator = document.getElementById('loading');
-    const newsContainer = document.getElementById('news-container');
+    const loadingIndicator = document.getElementById('loading');
+    const newsContainer = document.getElementById('news-container');
 
-    // 1. Bật hiệu ứng Đang tải dữ liệu và làm trống danh sách cũ
-    loadingIndicator.style.display = 'block';
-    newsContainer.innerHTML = '';
+    loadingIndicator.style.display = 'block';
+    newsContainer.innerHTML = '';
 
-    try {
-        // Cố tình chờ 1.2 giây để khoe chữ Loading nhấp nháy (muốn siêu tốc độ thì xóa dòng này nhé)
-        await sleep(1200);
+    try {
+        // TỐI ƯU: Chạy song song cả sleep và fetch để tiết kiệm thời gian
+        const [_, response] = await Promise.all([
+            sleep(1200), // Vẫn giữ 1.2s nghệ thuật của bạn
+            fetch('https://jsonplaceholder.typicode.com/posts') // Chạy đồng thời luôn
+        ]);
 
-        // 2. Viết hàm async/await gọi dữ liệu từ API công khai theo đề bài
-        const response = await fetch('https://jsonplaceholder.typicode.com/posts');
+        if (!response.ok) {
+            throw new Error(`Lỗi kết nối Server: ${response.status}`);
+        }
 
-        // Check nếu server chết hoặc lỗi kết nối mạng
-        if (!response.ok) {
-            throw new Error(`Lỗi kết nối Server: ${response.status}`);
-        }
+        const posts = await response.json();
+        const displayPosts = posts.slice(0, 10);
 
-        const posts = await response.json();
+        // TỐI ƯU: Sử dụng DocumentFragment để tránh reflow giao diện nhiều lần
+        const fragment = document.createDocumentFragment();
 
-        // 3. Render dữ liệu thành các khối Card (Lấy 10 bài cho đẹp giao diện)
-        const displayPosts = posts.slice(0, 10);
+        displayPosts.forEach(post => {
+            const card = document.createElement('div');
+            card.className = 'card';
 
-        displayPosts.forEach(post => {
-            const card = document.createElement('div');
-            card.className = 'card';
+            // Tạo các element nhỏ bên trong để dùng textContent chống XSS
+            const titleEl = document.createElement('h3');
+            titleEl.textContent = `[#${post.id}] ${post.title}`;
 
-            card.innerHTML = `
-                <h3>[#${post.id}] ${post.title}</h3>
-                <p>${post.body}</p>
-            `;
-            newsContainer.appendChild(card);
-        });
+            const bodyEl = document.createElement('p');
+            bodyEl.textContent = post.body;
 
-    } catch (error) {
-        // 4. Xử lý bắt lỗi bằng khối try...catch phòng trường hợp mất mạng
-        console.error("Hệ thống phát hiện sự cố:", error);
-        newsContainer.innerHTML = `<p class="error-msg">LỖI HỆ THỐNG: ${error.message}</p>`;
-    } finally {
-        // Tắt loading indicator dù thành công hay thất bại
-        loadingIndicator.style.display = 'none';
-    }
+            card.appendChild(titleEl);
+            card.appendChild(bodyEl);
+            
+            fragment.appendChild(card);
+        });
+
+        // Chỉ nạp vào DOM đúng 1 lần duy nhất
+        newsContainer.appendChild(fragment);
+
+    } catch (error) {
+        console.error("Hệ thống phát hiện sự cố:", error);
+        // Với tin nhắn lỗi, dùng textContent để an toàn
+        const errorPara = document.createElement('p');
+        errorPara.className = 'error-msg';
+        errorPara.textContent = `LỖI HỆ THỐNG: ${error.message}`;
+        newsContainer.appendChild(errorPara);
+    } finally {
+        loadingIndicator.style.display = 'none';
+    }
 }
