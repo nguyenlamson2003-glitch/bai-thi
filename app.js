@@ -8,54 +8,66 @@ async function fetchNews() {
     const loadingIndicator = document.getElementById('loading');
     const newsContainer = document.getElementById('news-container');
 
+    // Bật hiệu ứng loading xoay vòng 3D
     loadingIndicator.style.display = 'block';
     newsContainer.innerHTML = '';
 
     try {
-        // TỐI ƯU: Chạy song song cả sleep và fetch để tiết kiệm thời gian
+        // Chạy song song cả delay ảo 1.2s và fetch API
         const [_, response] = await Promise.all([
-            sleep(1200), // Vẫn giữ 1.2s nghệ thuật của bạn
-            fetch('https://jsonplaceholder.typicode.com/posts') // Chạy đồng thời luôn
+            sleep(1200),
+            fetch('https://jsonplaceholder.typicode.com/posts')
         ]);
 
         if (!response.ok) {
-            throw new Error(`Lỗi kết nối Server: ${response.status}`);
+            throw new Error(`Mạng lỗi hoặc Server từ chối: ${response.status}`);
         }
 
         const posts = await response.json();
         const displayPosts = posts.slice(0, 10);
 
-        // TỐI ƯU: Sử dụng DocumentFragment để tránh reflow giao diện nhiều lần
+        // Dùng Fragment gom dữ liệu để render 1 lần duy nhất
         const fragment = document.createDocumentFragment();
 
         displayPosts.forEach(post => {
             const card = document.createElement('div');
-            card.className = 'card';
+            card.className = 'news-card'; // Đã khớp với CSS
 
-            // Tạo các element nhỏ bên trong để dùng textContent chống XSS
+            // Tiêu đề
             const titleEl = document.createElement('h3');
             titleEl.textContent = `[#${post.id}] ${post.title}`;
 
+            // Nội dung
             const bodyEl = document.createElement('p');
             bodyEl.textContent = post.body;
 
+            // Nút Read More
+            const readMoreBtn = document.createElement('a');
+            readMoreBtn.className = 'read-more';
+            readMoreBtn.href = '#';
+            readMoreBtn.textContent = 'Read More';
+
+            // Gắn vào thẻ card
             card.appendChild(titleEl);
             card.appendChild(bodyEl);
+            card.appendChild(readMoreBtn);
             
             fragment.appendChild(card);
         });
 
-        // Chỉ nạp vào DOM đúng 1 lần duy nhất
+        // Đẩy lên màn hình
         newsContainer.appendChild(fragment);
 
     } catch (error) {
         console.error("Hệ thống phát hiện sự cố:", error);
-        // Với tin nhắn lỗi, dùng textContent để an toàn
-        const errorPara = document.createElement('p');
+        
+        // Hiển thị khung báo lỗi rung lắc
+        const errorPara = document.createElement('div');
         errorPara.className = 'error-msg';
-        errorPara.textContent = `LỖI HỆ THỐNG: ${error.message}`;
+        errorPara.textContent = `⚠️ LỖI HỆ THỐNG: ${error.message}`;
         newsContainer.appendChild(errorPara);
     } finally {
+        // Ẩn loading
         loadingIndicator.style.display = 'none';
     }
 }
